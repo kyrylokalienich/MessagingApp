@@ -1,6 +1,6 @@
 ﻿using Messaging.Contracts.DTOs;
 
-namespace Messaging.Contracts.Interfaces;
+namespace Messaging.Contracts.Services;
 
 /// <summary>
 /// Компонент бізнес-логіки повідомлень.
