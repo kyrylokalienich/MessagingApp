@@ -12,6 +12,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messaging.Auth", "Messaging
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Messaging.Storage", "Messaging.Storage\Messaging.Storage.csproj", "{FC216E57-2995-4416-8912-66D9D7FDDA1F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "MessagingAppForms", "MessagingAppForms\MessagingAppForms.csproj", "{82EEE3A7-806E-45D5-99AF-12BBE74D2527}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -42,5 +44,9 @@ Global
 		{FC216E57-2995-4416-8912-66D9D7FDDA1F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FC216E57-2995-4416-8912-66D9D7FDDA1F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FC216E57-2995-4416-8912-66D9D7FDDA1F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{82EEE3A7-806E-45D5-99AF-12BBE74D2527}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{82EEE3A7-806E-45D5-99AF-12BBE74D2527}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{82EEE3A7-806E-45D5-99AF-12BBE74D2527}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{82EEE3A7-806E-45D5-99AF-12BBE74D2527}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 EndGlobal
