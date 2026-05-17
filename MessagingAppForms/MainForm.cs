@@ -1,25 +1,14 @@
 ﻿using Messaging.Contracts.DTOs;
-using Messaging.Contracts.Services;
-using Messaging.Services;
-using Messaging.Storage;
 
 namespace MessagingAppForms;
 
 public partial class MainForm : Form
 {
-    private readonly IAuthService authService;
-    private readonly IMessageService messageService;
-    private UserDto? currentUser;
+    private readonly AppSession session = AppSession.Instance;
 
     public MainForm()
     {
         InitializeComponent();
-
-        var userRepo = new JsonUserRepository("data");
-        var messageRepo = new JsonMessageRepository("data");
-
-        authService = new AuthService(userRepo);
-        messageService = new MessageService(messageRepo);
 
         cmbSortOrder.Items.AddRange(new object[] { "За спаданням", "За зростанням" });
         cmbSortOrder.SelectedIndex = 0;
@@ -34,62 +23,22 @@ public partial class MainForm : Form
         lvMessages.GridLines = true;
         lvMessages.HideSelection = false;
 
-        SetCurrentUser(null);
+        UpdateUserStatus();
     }
 
-    private void btnRegister_Click(object sender, EventArgs e)
-    {
-        try
-        {
-            var request = new RegisterRequest(txtLogin.Text.Trim(), txtPassword.Text);
-            var user = authService.Register(request);
-            SetStatus($"Реєстрація успішна. Ваш email: {user.Email}", false);
-            txtPassword.Clear();
-        }
-        catch (Exception ex)
-        {
-            SetStatus(ex.Message, true);
-        }
-    }
-
-    private void btnLogin_Click(object sender, EventArgs e)
-    {
-        try
-        {
-            var request = new LoginRequest(txtLogin.Text.Trim(), txtPassword.Text);
-            var user = authService.Login(request);
-            SetCurrentUser(user);
-            SetStatus($"Вхід успішний. Привіт, {user.Login}!", false);
-            txtPassword.Clear();
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"Не вдалося авторизуватися: {ex.Message}", true);
-        }
-    }
-
-    private void btnLogout_Click(object sender, EventArgs e)
-    {
-        SetCurrentUser(null);
-        SetStatus("Ви вийшли з облікового запису.", false);
-    }
-
-    private void btnSend_Click(object sender, EventArgs e)
+    private void btnNewLetter_Click(object sender, EventArgs e)
     {
         if (!EnsureLoggedIn())
             return;
 
-        try
-        {
-            var request = new SendMessageRequest(txtRecipient.Text.Trim(), txtSubject.Text.Trim(), txtBody.Text);
-            var message = messageService.Send(currentUser!.Email, request);
-            SetStatus($"Повідомлення надіслано. Розмір: {message.SizeBytes} байт, Дата: {message.SentAt:u}", false);
-            txtBody.Clear();
-        }
-        catch (Exception ex)
-        {
-            SetStatus($"Не вдалося надіслати повідомлення: {ex.Message}", true);
-        }
+        using var sendForm = new SendMailForm();
+        sendForm.ShowDialog(this);
+    }
+
+    private void btnLogout_Click(object sender, EventArgs e)
+    {
+        session.CurrentUser = null;
+        Close();
     }
 
     private void btnInbox_Click(object sender, EventArgs e)
@@ -97,7 +46,7 @@ public partial class MainForm : Form
         if (!EnsureLoggedIn())
             return;
 
-        var messages = messageService.GetInbox(currentUser!.Email, GetSortAscending());
+        var messages = session.MessageService.GetInbox(session.CurrentUser!.Email, GetSortAscending());
         DisplayMessages(messages, "Вхідні повідомлення");
     }
 
@@ -106,7 +55,7 @@ public partial class MainForm : Form
         if (!EnsureLoggedIn())
             return;
 
-        var messages = messageService.GetSent(currentUser!.Email, GetSortAscending());
+        var messages = session.MessageService.GetSent(session.CurrentUser!.Email, GetSortAscending());
         DisplayMessages(messages, "Надіслані повідомлення");
     }
 
@@ -115,7 +64,7 @@ public partial class MainForm : Form
         if (!EnsureLoggedIn())
             return;
 
-        var groups = messageService.GetInboxGrouped(currentUser!.Email);
+        var groups = session.MessageService.GetInboxGrouped(session.CurrentUser!.Email);
         DisplayGroupedMessages(groups, "Вхідні повідомлення, згруповані за часом");
     }
 
@@ -124,7 +73,7 @@ public partial class MainForm : Form
         if (!EnsureLoggedIn())
             return;
 
-        var groups = messageService.GetSentGrouped(currentUser!.Email);
+        var groups = session.MessageService.GetSentGrouped(session.CurrentUser!.Email);
         DisplayGroupedMessages(groups, "Надіслані повідомлення, згруповані за часом");
     }
 
@@ -133,7 +82,7 @@ public partial class MainForm : Form
         if (!EnsureLoggedIn())
             return;
 
-        var messages = messageService.Search(currentUser!.Email, txtSearch.Text.Trim());
+        var messages = session.MessageService.Search(session.CurrentUser!.Email, txtSearch.Text.Trim());
         DisplayMessages(messages, $"Результати пошуку: '{txtSearch.Text.Trim()}'");
     }
 
@@ -147,7 +96,7 @@ public partial class MainForm : Form
 
         try
         {
-            var messages = messageService.GetByDateRange(currentUser!.Email, from, to);
+            var messages = session.MessageService.GetByDateRange(session.CurrentUser!.Email, from, to);
             DisplayMessages(messages, $"Повідомлення з {from:yyyy-MM-dd} по {to:yyyy-MM-dd}");
         }
         catch (Exception ex)
@@ -177,12 +126,12 @@ public partial class MainForm : Form
         lvMessages.Groups.Clear();
         lvMessages.Items.Clear();
 
-        var group = new System.Windows.Forms.ListViewGroup("messagesGroup", header);
+        var group = new ListViewGroup("messagesGroup", header);
         lvMessages.Groups.Add(group);
 
         foreach (var message in messages)
         {
-            var item = new System.Windows.Forms.ListViewItem(message.Id.ToString()) { Group = group, Tag = message };
+            var item = new ListViewItem(message.Id.ToString()) { Group = group, Tag = message };
             item.SubItems.Add(message.SenderEmail);
             item.SubItems.Add(message.RecipientEmail);
             item.SubItems.Add(message.Subject);
@@ -206,12 +155,12 @@ public partial class MainForm : Form
 
         foreach (var groupData in groups)
         {
-            var group = new System.Windows.Forms.ListViewGroup(groupData.GroupLabel, groupData.GroupLabel);
+            var group = new ListViewGroup(groupData.GroupLabel, groupData.GroupLabel);
             lvMessages.Groups.Add(group);
 
             foreach (var message in groupData.Messages)
             {
-                var item = new System.Windows.Forms.ListViewItem(message.Id.ToString()) { Group = group, Tag = message };
+                var item = new ListViewItem(message.Id.ToString()) { Group = group, Tag = message };
                 item.SubItems.Add(message.SenderEmail);
                 item.SubItems.Add(message.RecipientEmail);
                 item.SubItems.Add(message.Subject);
@@ -223,7 +172,7 @@ public partial class MainForm : Form
         lvMessages.EndUpdate();
         txtDetails.Clear();
 
-        if (!lvMessages.Items.Cast<System.Windows.Forms.ListViewItem>().Any())
+        if (!lvMessages.Items.Cast<ListViewItem>().Any())
             SetStatus("Повідомлень не знайдено.", false);
     }
 
@@ -231,51 +180,25 @@ public partial class MainForm : Form
 
     private bool EnsureLoggedIn()
     {
-        if (currentUser != null)
+        if (session.CurrentUser != null)
             return true;
 
         SetStatus("Будь ласка, увійдіть, щоб працювати з повідомленнями.", true);
         return false;
     }
 
-    private void SetCurrentUser(UserDto? user)
+    private void UpdateUserStatus()
     {
-        currentUser = user;
-        bool loggedIn = currentUser != null;
-
-        lblUserStatus.Text = loggedIn
-            ? $"Увійшли як: {currentUser!.Login} ({currentUser.Email})"
+        var user = session.CurrentUser;
+        lblUserStatus.Text = user != null
+            ? $"Увійшли як: {user.Login} ({user.Email})"
             : "Не виконано вхід";
-
-        gbCompose.Enabled = loggedIn;
-        gbActions.Enabled = loggedIn;
-        btnLogout.Enabled = loggedIn;
-        btnLogin.Enabled = !loggedIn;
-        btnRegister.Enabled = !loggedIn;
-        txtLogin.Enabled = !loggedIn;
-        txtPassword.Enabled = !loggedIn;
-
-        if (!loggedIn)
-        {
-            ClearMessages();
-            txtRecipient.Clear();
-            txtSubject.Clear();
-            txtBody.Clear();
-        }
-    }
-
-    private void ClearMessages()
-    {
-        lvMessages.Items.Clear();
-        lvMessages.Groups.Clear();
-        txtDetails.Clear();
-        lblResultsHeader.Text = "Результати";
     }
 
     private void SetStatus(string message, bool isError)
     {
         lblStatus.Text = message;
-        lblStatus.ForeColor = isError ? System.Drawing.Color.DarkRed : System.Drawing.Color.DarkGreen;
+        lblStatus.ForeColor = isError ? Color.DarkRed : Color.DarkGreen;
     }
 
     private static string BuildMessageDetails(MessageDto message)
