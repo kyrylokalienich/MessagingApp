@@ -1,7 +1,7 @@
 ﻿namespace Messaging.Contracts.DTOs;
 
 public record UserDto(
-    Guid Id,
+    int Id,
     string Login,
     string Email
 );

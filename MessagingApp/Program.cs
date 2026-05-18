@@ -2,10 +2,10 @@ using Messaging.Contracts.DTOs;
 using Messaging.Services;
 using Messaging.Storage;
 
-var userRepo = new JsonUserRepository("data");
-var messageRepo = new JsonMessageRepository("data");
+MessagingStorageBootstrap.ApplyMigrations();
+var (userRepo, messageRepo) = MessagingStorageBootstrap.CreateRepositories();
 var authService = new AuthService(userRepo);
-var messageService = new MessageService(messageRepo);
+var messageService = new MessageService(messageRepo, userRepo);
 
 UserDto? currentUser = null;
 
