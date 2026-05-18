@@ -15,6 +15,12 @@ public class EfMessageRepository : IMessageRepository
 
     public void Add(Message message) => _context.Messages.Add(message);
 
+    public Message? GetById(int id) =>
+        _context.Messages
+            .Include(m => m.Sender)
+            .Include(m => m.Recipient)
+            .FirstOrDefault(m => m.Id == id);
+
     public IReadOnlyList<Message> GetAll() =>
         _context.Messages
             .AsNoTracking()

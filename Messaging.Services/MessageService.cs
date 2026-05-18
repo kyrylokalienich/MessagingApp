@@ -124,6 +124,34 @@ public class MessageService : IMessageService
         return GroupByTimeRange(messages);
     }
 
+    public void DeleteMessage(string userEmail, int messageId)
+    {
+        var user = userRepo.FindByEmail(userEmail)
+            ?? throw new InvalidOperationException("Користувача не знайдено.");
+
+        var message = messageRepo.GetById(messageId)
+            ?? throw new InvalidOperationException("Повідомлення не знайдено.");
+
+        if (message.SenderId == user.Id)
+        {
+            if (message.IsDeletedBySender)
+                throw new InvalidOperationException("Повідомлення вже видалено.");
+            message.IsDeletedBySender = true;
+        }
+        else if (message.RecipientId == user.Id)
+        {
+            if (message.IsDeletedByRecipient)
+                throw new InvalidOperationException("Повідомлення вже видалено.");
+            message.IsDeletedByRecipient = true;
+        }
+        else
+        {
+            throw new UnauthorizedAccessException("Немає прав для видалення цього повідомлення.");
+        }
+
+        messageRepo.Save();
+    }
+
     private static bool IsVisibleToUser(Message message, int userId) =>
         (message.SenderId == userId && !message.IsDeletedBySender) ||
         (message.RecipientId == userId && !message.IsDeletedByRecipient);

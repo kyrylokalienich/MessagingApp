@@ -27,6 +27,7 @@ partial class MainForm
     private System.Windows.Forms.Label lblResultsHeader;
     private System.Windows.Forms.ListView lvMessages;
     private System.Windows.Forms.TextBox txtDetails;
+    private System.Windows.Forms.Button btnDelete;
 
     protected override void Dispose(bool disposing)
     {
@@ -62,6 +63,7 @@ partial class MainForm
         this.labelSort = new System.Windows.Forms.Label();
         this.cmbSortOrder = new System.Windows.Forms.ComboBox();
         this.gbResults = new System.Windows.Forms.GroupBox();
+        this.btnDelete = new System.Windows.Forms.Button();
         this.txtDetails = new System.Windows.Forms.TextBox();
         this.lvMessages = new System.Windows.Forms.ListView();
         this.lblResultsHeader = new System.Windows.Forms.Label();
@@ -287,6 +289,7 @@ partial class MainForm
         // 
         // gbResults
         // 
+        this.gbResults.Controls.Add(this.btnDelete);
         this.gbResults.Controls.Add(this.txtDetails);
         this.gbResults.Controls.Add(this.lvMessages);
         this.gbResults.Controls.Add(this.lblResultsHeader);
@@ -298,6 +301,17 @@ partial class MainForm
         this.gbResults.TabIndex = 2;
         this.gbResults.TabStop = false;
         this.gbResults.Text = "Результати";
+        // 
+        // btnDelete
+        // 
+        this.btnDelete.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Right)));
+        this.btnDelete.Location = new System.Drawing.Point(359, 18);
+        this.btnDelete.Name = "btnDelete";
+        this.btnDelete.Size = new System.Drawing.Size(110, 25);
+        this.btnDelete.TabIndex = 3;
+        this.btnDelete.Text = "Видалити";
+        this.btnDelete.UseVisualStyleBackColor = true;
+        this.btnDelete.Click += new System.EventHandler(this.btnDelete_Click);
         // 
         // txtDetails
         // 

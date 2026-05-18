@@ -13,7 +13,7 @@ public partial class MainForm : Form
         cmbSortOrder.Items.AddRange(new object[] { "За спаданням", "За зростанням" });
         cmbSortOrder.SelectedIndex = 0;
 
-        lvMessages.Columns.Add("ID", 220);
+        lvMessages.Columns.Add("ID", 60);
         lvMessages.Columns.Add("Від", 180);
         lvMessages.Columns.Add("До", 180);
         lvMessages.Columns.Add("Тема", 220);
@@ -98,6 +98,42 @@ public partial class MainForm : Form
         {
             var messages = session.MessageService.GetByDateRange(session.CurrentUser!.Email, from, to);
             DisplayMessages(messages, $"Повідомлення з {from:yyyy-MM-dd} по {to:yyyy-MM-dd}");
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex.Message, true);
+        }
+    }
+
+    private void btnDelete_Click(object sender, EventArgs e)
+    {
+        if (!EnsureLoggedIn())
+            return;
+
+        if (lvMessages.SelectedItems.Count == 0)
+        {
+            SetStatus("Оберіть повідомлення для видалення.", true);
+            return;
+        }
+
+        if (lvMessages.SelectedItems[0].Tag is not MessageDto message)
+            return;
+
+        var confirm = MessageBox.Show(
+            $"Видалити повідомлення «{message.Subject}»?",
+            "Підтвердження видалення",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (confirm != DialogResult.Yes)
+            return;
+
+        try
+        {
+            session.MessageService.DeleteMessage(session.CurrentUser!.Email, message.Id);
+            lvMessages.SelectedItems[0].Remove();
+            txtDetails.Clear();
+            SetStatus("Повідомлення видалено.", false);
         }
         catch (Exception ex)
         {

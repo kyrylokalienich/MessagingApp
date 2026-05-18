@@ -21,6 +21,8 @@ public interface IMessageService
     IReadOnlyList<MessageGroupDto> GetSentGrouped(string senderEmail);
 
     IReadOnlyList<MessageGroupDto> GetInboxGrouped(string recipientEmail);
+
+    void DeleteMessage(string userEmail, int messageId);
 }
 
 
