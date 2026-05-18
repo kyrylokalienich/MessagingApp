@@ -48,9 +48,14 @@ public class MessageService : IMessageService
         messageRepo.Add(message);
         messageRepo.Save();
 
-        message.Sender = sender;
-        message.Recipient = recipient;
-        return ToDto(message);
+        return new MessageDto(
+            message.Id,
+            sender.Email,
+            recipient.Email,
+            message.Subject,
+            message.Body ?? string.Empty,
+            message.SizeBytes,
+            message.SentAt);
     }
 
     public IReadOnlyList<MessageDto> GetSent(string senderEmail, bool ascending = false)

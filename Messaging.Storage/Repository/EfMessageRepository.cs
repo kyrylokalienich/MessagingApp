@@ -28,5 +28,9 @@ public class EfMessageRepository : IMessageRepository
             .Include(m => m.Recipient)
             .ToList();
 
-    public void Save() => _context.SaveChanges();
+    public void Save()
+    {
+        _context.SaveChanges();
+        _context.ChangeTracker.Clear();
+    }
 }

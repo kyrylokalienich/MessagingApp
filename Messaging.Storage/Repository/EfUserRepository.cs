@@ -26,5 +26,9 @@ public class EfUserRepository : IUserRepository
     public bool LoginExists(string login) =>
         _context.Users.Any(u => EF.Functions.ILike(u.Login, login));
 
-    public void Save() => _context.SaveChanges();
+    public void Save()
+    {
+        _context.SaveChanges();
+        _context.ChangeTracker.Clear();
+    }
 }
