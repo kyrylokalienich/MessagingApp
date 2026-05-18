@@ -155,6 +155,18 @@ public partial class MainForm : Form
         }
     }
 
+    private void lvMessages_DoubleClick(object sender, EventArgs e)
+    {
+        if (lvMessages.SelectedItems.Count == 0)
+            return;
+
+        if (lvMessages.SelectedItems[0].Tag is not MessageDto message)
+            return;
+
+        using var viewForm = new ViewMessageForm(message);
+        viewForm.ShowDialog(this);
+    }
+
     private void DisplayMessages(IReadOnlyList<MessageDto> messages, string header)
     {
         lblResultsHeader.Text = header;

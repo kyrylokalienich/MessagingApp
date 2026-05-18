@@ -337,6 +337,7 @@ partial class MainForm
         this.lvMessages.TabIndex = 1;
         this.lvMessages.UseCompatibleStateImageBehavior = false;
         this.lvMessages.SelectedIndexChanged += new System.EventHandler(this.lvMessages_SelectedIndexChanged);
+        this.lvMessages.DoubleClick += new System.EventHandler(this.lvMessages_DoubleClick);
         // 
         // lblResultsHeader
         // 
