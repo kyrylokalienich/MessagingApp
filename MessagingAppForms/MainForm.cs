@@ -13,7 +13,7 @@ public partial class MainForm : Form
         cmbSortOrder.Items.AddRange(new object[] { "За спаданням", "За зростанням" });
         cmbSortOrder.SelectedIndex = 0;
 
-        lvMessages.Columns.Add("ID", 220);
+        lvMessages.Columns.Add("ID", 60);
         lvMessages.Columns.Add("Від", 180);
         lvMessages.Columns.Add("До", 180);
         lvMessages.Columns.Add("Тема", 220);
@@ -105,6 +105,42 @@ public partial class MainForm : Form
         }
     }
 
+    private void btnDelete_Click(object sender, EventArgs e)
+    {
+        if (!EnsureLoggedIn())
+            return;
+
+        if (lvMessages.SelectedItems.Count == 0)
+        {
+            SetStatus("Оберіть повідомлення для видалення.", true);
+            return;
+        }
+
+        if (lvMessages.SelectedItems[0].Tag is not MessageDto message)
+            return;
+
+        var confirm = MessageBox.Show(
+            $"Видалити повідомлення «{message.Subject}»?",
+            "Підтвердження видалення",
+            MessageBoxButtons.YesNo,
+            MessageBoxIcon.Question);
+
+        if (confirm != DialogResult.Yes)
+            return;
+
+        try
+        {
+            session.MessageService.DeleteMessage(session.CurrentUser!.Email, message.Id);
+            lvMessages.SelectedItems[0].Remove();
+            txtDetails.Clear();
+            SetStatus("Повідомлення видалено.", false);
+        }
+        catch (Exception ex)
+        {
+            SetStatus(ex.Message, true);
+        }
+    }
+
     private void lvMessages_SelectedIndexChanged(object sender, EventArgs e)
     {
         if (lvMessages.SelectedItems.Count == 0)
@@ -117,6 +153,18 @@ public partial class MainForm : Form
         {
             txtDetails.Text = BuildMessageDetails(message);
         }
+    }
+
+    private void lvMessages_DoubleClick(object sender, EventArgs e)
+    {
+        if (lvMessages.SelectedItems.Count == 0)
+            return;
+
+        if (lvMessages.SelectedItems[0].Tag is not MessageDto message)
+            return;
+
+        using var viewForm = new ViewMessageForm(message);
+        viewForm.ShowDialog(this);
     }
 
     private void DisplayMessages(IReadOnlyList<MessageDto> messages, string header)

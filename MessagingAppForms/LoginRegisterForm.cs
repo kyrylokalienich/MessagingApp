@@ -13,14 +13,16 @@ public partial class LoginRegisterForm : Form
 
     private void btnRegister_Click(object sender, EventArgs e)
     {
-        try
-        {
+        try{
             var request = new RegisterRequest(txtLogin.Text.Trim(), txtPassword.Text);
             var user = session.AuthService.Register(request);
             SetStatus($"Реєстрація успішна. Ваш email: {user.Email}", false);
             txtPassword.Clear();
         }
-        catch (Exception ex)
+        catch (ArgumentException ex){
+            SetStatus(ex.Message, true);
+        }
+        catch (InvalidOperationException ex )
         {
             SetStatus(ex.Message, true);
         }

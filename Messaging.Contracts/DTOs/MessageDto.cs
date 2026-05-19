@@ -1,7 +1,7 @@
 ﻿namespace Messaging.Contracts.DTOs;
 
 public record MessageDto(
-    Guid Id,
+    int Id,
     string SenderEmail,
     string RecipientEmail,
     string Subject,

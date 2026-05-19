@@ -15,9 +15,9 @@ public sealed class AppSession
 
     private AppSession()
     {
-        var userRepo = new JsonUserRepository("data");
-        var messageRepo = new JsonMessageRepository("data");
+        MessagingStorageBootstrap.ApplyMigrations();
+        var (userRepo, messageRepo) = MessagingStorageBootstrap.CreateRepositories();
         AuthService = new AuthService(userRepo);
-        MessageService = new MessageService(messageRepo);
+        MessageService = new MessageService(messageRepo, userRepo);
     }
 }

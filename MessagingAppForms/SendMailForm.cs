@@ -33,6 +33,7 @@ public partial class SendMailForm : Form
         }
         catch (Exception ex)
         {
+            Console.WriteLine(ex);
             SetStatus($"Не вдалося надіслати повідомлення: {ex.Message}", true);
         }
     }

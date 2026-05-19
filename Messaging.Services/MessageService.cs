@@ -13,48 +13,68 @@ namespace Messaging.Services;
 /// </summary>
 public class MessageService : IMessageService
 {
-    private readonly IMessageRepository repo;
+    private readonly IMessageRepository messageRepo;
+    private readonly IUserRepository userRepo;
 
-    public MessageService(IMessageRepository messageRepository)
+    public MessageService(IMessageRepository messageRepository, IUserRepository userRepository)
     {
-        repo = messageRepository ?? throw new ArgumentNullException(nameof(messageRepository));
+        messageRepo = messageRepository ?? throw new ArgumentNullException(nameof(messageRepository));
+        userRepo = userRepository ?? throw new ArgumentNullException(nameof(userRepository));
     }
 
     public MessageDto Send(string senderEmail, SendMessageRequest request)
     {
         ValidateSendRequest(senderEmail, request);
 
+        var sender = userRepo.FindByEmail(senderEmail.Trim())
+            ?? throw new InvalidOperationException("Відправника не знайдено.");
+
+        var recipient = userRepo.FindByEmail(request.RecipientEmail.Trim())
+            ?? throw new InvalidOperationException("Отримувача з таким email не знайдено.");
+
         var body = request.Body ?? string.Empty;
         var sizeBytes = System.Text.Encoding.UTF8.GetByteCount(body);
 
         var message = new Message
         {
-            SenderEmail = senderEmail.Trim().ToLowerInvariant(),
-            RecipientEmail = request.RecipientEmail.Trim().ToLowerInvariant(),
+            SenderId = sender.Id,
+            RecipientId = recipient.Id,
             Subject = request.Subject.Trim(),
             Body = body,
             SizeBytes = sizeBytes,
-            SentAt = DateTime.UtcNow   // Час відправлення встановлюється системою
+            SentAt = DateTime.UtcNow
         };
 
-        repo.Add(message);
-        repo.Save();
-        return ToDto(message);
+        messageRepo.Add(message);
+        messageRepo.Save();
+
+        return new MessageDto(
+            message.Id,
+            sender.Email,
+            recipient.Email,
+            message.Subject,
+            message.Body ?? string.Empty,
+            message.SizeBytes,
+            message.SentAt);
     }
 
     public IReadOnlyList<MessageDto> GetSent(string senderEmail, bool ascending = false)
     {
-        var email = senderEmail.ToLowerInvariant();
-        var msgs = repo.GetAll()
-            .Where(m => m.SenderEmail == email && !m.IsDeleted);
+        var sender = userRepo.FindByEmail(senderEmail)
+            ?? throw new InvalidOperationException("Користувача не знайдено.");
+
+        var msgs = messageRepo.GetAll()
+            .Where(m => m.SenderId == sender.Id && !m.IsDeletedBySender);
         return Sort(msgs, ascending).Select(ToDto).ToList();
     }
 
     public IReadOnlyList<MessageDto> GetInbox(string recipientEmail, bool ascending = false)
     {
-        var email = recipientEmail.ToLowerInvariant();
-        var msgs = repo.GetAll()
-            .Where(m => m.RecipientEmail == email && !m.IsDeleted);
+        var recipient = userRepo.FindByEmail(recipientEmail)
+            ?? throw new InvalidOperationException("Користувача не знайдено.");
+
+        var msgs = messageRepo.GetAll()
+            .Where(m => m.RecipientId == recipient.Id && !m.IsDeletedByRecipient);
         return Sort(msgs, ascending).Select(ToDto).ToList();
     }
 
@@ -63,16 +83,18 @@ public class MessageService : IMessageService
         if (string.IsNullOrWhiteSpace(query))
             return Array.Empty<MessageDto>();
 
-        var email = userEmail.ToLowerInvariant();
+        var user = userRepo.FindByEmail(userEmail)
+            ?? throw new InvalidOperationException("Користувача не знайдено.");
+
         var q = query.Trim().ToLowerInvariant();
 
-        return repo.GetAll()
-            .Where(m => !m.IsDeleted &&
-                        (m.SenderEmail == email || m.RecipientEmail == email) &&
-                        (m.Subject.ToLowerInvariant().Contains(q) ||
-                         m.Body.ToLowerInvariant().Contains(q) ||
-                         m.SenderEmail.Contains(q) ||
-                         m.RecipientEmail.Contains(q)))
+        return messageRepo.GetAll()
+            .Where(m => IsVisibleToUser(m, user.Id))
+            .Where(m =>
+                m.Subject.ToLowerInvariant().Contains(q) ||
+                (m.Body ?? string.Empty).ToLowerInvariant().Contains(q) ||
+                m.Sender.Email.ToLowerInvariant().Contains(q) ||
+                m.Recipient.Email.ToLowerInvariant().Contains(q))
             .OrderByDescending(m => m.SentAt)
             .Select(ToDto)
             .ToList();
@@ -82,13 +104,14 @@ public class MessageService : IMessageService
     {
         if (from > to) throw new ArgumentException("Початкова дата не може бути пізніше кінцевої.");
 
-        var email = userEmail.ToLowerInvariant();
-        var toEnd = to.Date.AddDays(1).AddTicks(-1); // Включити весь день "to"
+        var user = userRepo.FindByEmail(userEmail)
+            ?? throw new InvalidOperationException("Користувача не знайдено.");
 
-        return repo.GetAll()
-            .Where(m => !m.IsDeleted &&
-                        (m.SenderEmail == email || m.RecipientEmail == email) &&
-                        m.SentAt >= from && m.SentAt <= toEnd)
+        var toEnd = to.Date.AddDays(1).AddTicks(-1);
+
+        return messageRepo.GetAll()
+            .Where(m => IsVisibleToUser(m, user.Id))
+            .Where(m => m.SentAt >= from && m.SentAt <= toEnd)
             .OrderByDescending(m => m.SentAt)
             .Select(ToDto)
             .ToList();
@@ -106,7 +129,38 @@ public class MessageService : IMessageService
         return GroupByTimeRange(messages);
     }
 
-    // Групування повідомлень за часовими проміжками
+    public void DeleteMessage(string userEmail, int messageId)
+    {
+        var user = userRepo.FindByEmail(userEmail)
+            ?? throw new InvalidOperationException("Користувача не знайдено.");
+
+        var message = messageRepo.GetById(messageId)
+            ?? throw new InvalidOperationException("Повідомлення не знайдено.");
+
+        if (message.SenderId == user.Id)
+        {
+            if (message.IsDeletedBySender)
+                throw new InvalidOperationException("Повідомлення вже видалено.");
+            message.IsDeletedBySender = true;
+        }
+        else if (message.RecipientId == user.Id)
+        {
+            if (message.IsDeletedByRecipient)
+                throw new InvalidOperationException("Повідомлення вже видалено.");
+            message.IsDeletedByRecipient = true;
+        }
+        else
+        {
+            throw new UnauthorizedAccessException("Немає прав для видалення цього повідомлення.");
+        }
+
+        messageRepo.Save();
+    }
+
+    private static bool IsVisibleToUser(Message message, int userId) =>
+        (message.SenderId == userId && !message.IsDeletedBySender) ||
+        (message.RecipientId == userId && !message.IsDeletedByRecipient);
+
     private static IReadOnlyList<MessageGroupDto> GroupByTimeRange(IReadOnlyList<MessageDto> messages)
     {
         var now = DateTime.UtcNow;
@@ -121,7 +175,7 @@ public class MessageService : IMessageService
         };
 
         var result = new List<MessageGroupDto>();
-        var assigned = new HashSet<Guid>();
+        var assigned = new HashSet<int>();
 
         foreach (var (label, predicate) in groups)
         {
@@ -136,7 +190,6 @@ public class MessageService : IMessageService
             }
         }
 
-        // Решта (якщо не потрапила в жодну групу)
         var rest = messages.Where(m => !assigned.Contains(m.Id)).ToList();
         if (rest.Count > 0)
             result.Add(new MessageGroupDto("Інше", rest));
@@ -159,8 +212,8 @@ public class MessageService : IMessageService
             throw new ArgumentException("Невірний формат email отримувача.");
         if (string.IsNullOrWhiteSpace(request.Subject))
             throw new ArgumentException("Тема повідомлення не може бути порожньою.");
-        if (request.Subject.Length > 200)
-            throw new ArgumentException("Тема не може перевищувати 200 символів.");
+        if (request.Subject.Length > 255)
+            throw new ArgumentException("Тема не може перевищувати 255 символів.");
     }
 
     private static bool IsValidEmail(string email)
@@ -174,5 +227,5 @@ public class MessageService : IMessageService
     }
 
     private static MessageDto ToDto(Message m) =>
-        new(m.Id, m.SenderEmail, m.RecipientEmail, m.Subject, m.Body, m.SizeBytes, m.SentAt);
+        new(m.Id, m.Sender.Email, m.Recipient.Email, m.Subject, m.Body ?? string.Empty, m.SizeBytes, m.SentAt);
 }
